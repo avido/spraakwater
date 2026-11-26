@@ -20,26 +20,16 @@ enum Theme {
 /// One keycap, used to show the dictation shortcut.
 struct KeyCap: View {
     let symbol: String
+    var large = false
 
     var body: some View {
         Text(symbol)
-            .font(.system(size: 11, weight: .medium, design: .rounded))
+            .font(.system(size: large ? 15 : 11, weight: .medium, design: .rounded))
             .foregroundStyle(.primary)
-            .padding(.horizontal, 6)
-            .frame(minWidth: 22, minHeight: 20)
+            .padding(.horizontal, large ? 9 : 6)
+            .frame(minWidth: large ? 30 : 22, minHeight: large ? 28 : 20)
             .background(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(.primary.opacity(0.07)))
             .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).strokeBorder(.primary.opacity(0.14), lineWidth: 0.5))
-    }
-}
-
-extension Hotkey {
-    /// The shortcut split into keycaps, for example ["⌥", "Spatie"].
-    var keyCaps: [String] {
-        switch self {
-        case .optionSpace: ["⌥", "Spatie"]
-        case .controlSpace: ["⌃", "Spatie"]
-        case .commandOptionSpace: ["⌘", "⌥", "Spatie"]
-        }
     }
 }
 
