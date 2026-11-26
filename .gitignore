@@ -1,0 +1,17 @@
+# Build output
+.build/
+build/
+.swiftpm/
+*.xcodeproj/xcuserdata/
+
+# Secrets (API keys live in the Keychain, never in files)
+.env
+.env.*
+*.pem
+*.p12
+*.cer
+*.mobileprovision
+*.key
+
+# macOS
+.DS_Store
