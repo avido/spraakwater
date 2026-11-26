@@ -9,7 +9,15 @@ Menubar-app voor macOS: houd een sneltoets ingedrukt, praat, laat los en de teks
 3. Optioneel ruimt Claude (`claude-haiku-5-5`) de tekst op: vulwoorden eruit, leestekens, woordenlijst en eigen schrijfregels.
 4. De tekst wordt geplakt met Cmd+V. Je klembord wordt daarna teruggezet.
 
-Mislukt het opruimen, dan krijg je de ruwe transcriptie. De opname wordt na verwerking verwijderd.
+Mislukt het opruimen, dan krijg je de ruwe transcriptie. De opname wordt verwijderd zodra de transcriptie binnen is. Mislukt de transcriptie zelf, dan blijft de opname bewaard (maximaal 7 dagen) en kun je hem vanuit het menu opnieuw proberen.
+
+Verder:
+
+- Esc annuleert een lopende opname.
+- De sneltoets is vrij te kiezen, ook een losse toets zoals fn of de rechter Option (daarvoor vraagt macOS om Invoercontrole).
+- De laatste 50 dictaten staan in het menu, alleen op deze Mac. Uitzetten wist ze meteen.
+- Het opruimen past de toon aan op de app waarin je dicteert (mail, chat, code, notities). Alleen de naam van de app gaat mee.
+- Je kiest zelf welke microfoon wordt gebruikt en of de app start bij inloggen.
 
 ## Bouwen en starten
 
@@ -20,7 +28,7 @@ Het script tekent de app met je Apple Development-certificaat. Zo blijven de rec
 
 ## Eerste keer
 
-1. Open Instellingen via het menubar-icoon en vul de sleutels in (OpenAI of Groq, en Anthropic voor het opruimen). Ze staan in de Keychain.
+1. Open Instellingen via het menubar-icoon en vul de sleutels in (OpenAI of Groq, voor het opruimen ook Anthropic). Ze staan in de Keychain.
 2. Geef toegang tot de Microfoon bij de eerste opname.
 3. Zet Spraakwater aan onder Systeeminstellingen > Privacy en beveiliging > Toegankelijkheid. Zonder dit kan de app niet plakken (de tekst staat dan wel op het klembord).
 

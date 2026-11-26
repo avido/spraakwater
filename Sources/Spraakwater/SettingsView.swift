@@ -1,40 +1,25 @@
 import AppKit
 import SwiftUI
 
-/// Opens the settings window. A menu bar app has no Settings scene to lean on, so we host it ourselves.
-enum SettingsWindow {
-    private static var window: NSWindow?
-
-    static func show() {
-        if window == nil {
-            let hosting = NSHostingController(rootView: SettingsView(settings: AppController.shared.settings))
-            let newWindow = NSWindow(contentViewController: hosting)
-            newWindow.title = "Spraakwater"
-            newWindow.styleMask = [.titled, .closable, .fullSizeContentView]
-            newWindow.titlebarAppearsTransparent = true
-            newWindow.titleVisibility = .hidden
-            newWindow.isReleasedWhenClosed = false
-            newWindow.setContentSize(NSSize(width: 520, height: 780))
-            newWindow.center()
-            window = newWindow
-        }
-        NSApp.activate()
-        window?.makeKeyAndOrderFront(nil)
-    }
-}
-
 struct SettingsView: View {
     @Bindable var settings: Settings
+    /// The big app header is only wanted when the settings stand alone, not inside the main window.
+    var showsHeader = true
     @State private var accessibilityGranted = TextInserter.hasAccessibilityAccess
     @State private var microphone = MicrophoneAccess.current
+    @State private var inputMonitoringGranted = CGPreflightListenEventAccess()
+    @State private var limitDraft = 50.0
+    @State private var draggingLimit = false
+    @State private var capture = HotkeyCapture()
+    @State private var launchAtLogin = LaunchAtLogin.isEnabled
+    @State private var launchProblem: String?
 
     var body: some View {
         VStack(spacing: 0) {
-            header
+            if showsHeader { header }
             form
         }
         .tint(Theme.red)
-        .frame(width: 520)
     }
 
     private var version: String {
@@ -115,41 +100,116 @@ struct SettingsView: View {
                 Toggle("Vulwoorden en fouten laten opruimen", isOn: $settings.cleanupEnabled)
                 if settings.cleanupEnabled {
                     keyField("Anthropic-sleutel", text: $settings.anthropicKey, problem: settings.anthropicKeyProblem)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Extra schrijfregels")
-                        TextEditor(text: $settings.extraInstructions)
-                            .font(.body)
-                            .frame(height: 70)
-                            .overlay(RoundedRectangle(cornerRadius: 6).stroke(.quaternary))
-                    }
-                    Text("Model: \(TextCleaner.model)")
+                    Text("Model: \(TextCleaner.model). Schrijfregels en toon per app stel je in bij Schrijfstijl.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
 
-            Section("Woordenlijst") {
-                TextEditor(text: $settings.vocabulary)
-                    .font(.body)
-                    .frame(height: 70)
-                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(.quaternary))
-                Text("Namen en vaktermen die vaak verkeerd verstaan worden, gescheiden door een komma of een nieuwe regel.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            Section("Microfoon") {
+                MicrophoneList(settings: settings)
             }
 
             Section("Sneltoets") {
-                Picker("Toets", selection: $settings.hotkey) {
-                    ForEach(Hotkey.allCases) { Text($0.label).tag($0) }
-                }
-                LabeledContent("Zo ziet het eruit") {
+                LabeledContent("Nu") {
                     HStack(spacing: 4) {
                         ForEach(settings.hotkey.keyCaps, id: \.self) { KeyCap(symbol: $0) }
                     }
                 }
-                Text("Houd de toets ingedrukt terwijl je praat. Een korte tik laat de opname doorlopen tot je nog een keer drukt.")
+                HStack {
+                    Menu("Snelle keuze") {
+                        ForEach(Hotkey.presets, id: \.self) { preset in
+                            Button(preset.label) { settings.hotkey = preset }
+                        }
+                    }
+                    .fixedSize()
+                    Spacer()
+                    Button(capture.isCapturing ? "Stoppen" : "Eigen sneltoets opnemen") {
+                        if capture.isCapturing { capture.stop() } else { capture.start() }
+                    }
+                }
+                if capture.isCapturing {
+                    Text("Druk nu de toets of combinatie die je wilt gebruiken. Een losse fn of rechter ⌥ ⌘ ⌃ kan ook. Esc stopt.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                if let problem = capture.problem ?? settings.hotkeyError {
+                    Text(problem)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+                Text("Houd de toets ingedrukt terwijl je praat. Een korte tik laat de opname doorlopen tot je nog een keer drukt. Esc annuleert een opname.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+
+            Section("Geschiedenis") {
+                Toggle("Dictaten bewaren op deze Mac", isOn: $settings.historyEnabled)
+                if settings.historyEnabled {
+                    VStack(alignment: .leading, spacing: 4) {
+                        LabeledContent("Aantal bewaren") {
+                            Text("\(Int(limitDraft))")
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                        }
+                        Slider(
+                            value: $limitDraft,
+                            in: Double(Settings.historyLimitRange.lowerBound)...Double(Settings.historyLimitRange.upperBound),
+                            step: 1
+                        ) { editing in
+                            draggingLimit = editing
+                            if !editing { commitLimit() }
+                        }
+                        .onChange(of: limitDraft) {
+                            // Keyboard steps do not report an end of editing, so settle after a short pause.
+                            guard !draggingLimit else { return }
+                            let value = limitDraft
+                            Task {
+                                try? await Task.sleep(for: .seconds(0.5))
+                                if value == limitDraft { commitLimit() }
+                            }
+                        }
+                        HStack {
+                            Text("\(Settings.historyLimitRange.lowerBound)")
+                            Spacer()
+                            Text("\(Settings.historyLimitRange.upperBound)")
+                        }
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                    }
+                    LabeledContent("Nu bewaard") {
+                        HStack {
+                            Text("\(AppController.shared.history.entries.count)")
+                                .foregroundStyle(.secondary)
+                            Button("Wissen") { AppController.shared.history.clear() }
+                        }
+                    }
+                }
+                Text("De teksten blijven alleen op deze Mac. Zet je het aantal lager, dan worden oudere dictaten verwijderd zodra je de slider loslaat. Zet je de geschiedenis uit, dan wordt alles gewist.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                LabeledContent("Statistieken") {
+                    Button("Terugzetten") { AppController.shared.statistics.reset() }
+                }
+                Text("De tellers op het overzicht (woorden, tijd, dagen op rij) staan los van de geschiedenis en bevatten geen tekst.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("Opstarten") {
+                Toggle("Start Spraakwater bij inloggen", isOn: Binding(
+                    get: { launchAtLogin },
+                    set: { setLaunchAtLogin($0) }
+                ))
+                Toggle("Toon Spraakwater in het Dock", isOn: $settings.showInDock)
+                Text("Handig als je menubalk vol zit. macOS verbergt dan iconen die naast de notch vallen. Klik op het Dock-icoon om de instellingen te openen.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if let launchProblem {
+                    Text(launchProblem)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
             }
 
             Section("Rechten") {
@@ -172,11 +232,43 @@ struct SettingsView: View {
                     granted: accessibilityGranted,
                     pane: "Privacy_Accessibility"
                 )
+                if settings.hotkey.isModifierOnly {
+                    permissionRow(
+                        "Invoercontrole (voor een losse toets als fn)",
+                        granted: inputMonitoringGranted,
+                        pane: "Privacy_ListenEvent"
+                    )
+                }
                 Button("Status opnieuw controleren") { refreshPermissions() }
             }
         }
         .formStyle(.grouped)
-        .onAppear(perform: refreshPermissions)
+        .onAppear {
+            limitDraft = Double(settings.historyLimit)
+            refreshPermissions()
+            capture.onCaptured = { settings.hotkey = $0 }
+            capture.onStateChange = { AppController.shared.setHotkeyCapturing($0) }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in
+            capture.stop()
+        }
+    }
+
+    private func commitLimit() {
+        let value = Int(limitDraft)
+        if value != settings.historyLimit { settings.historyLimit = value }
+    }
+
+    private func setLaunchAtLogin(_ enabled: Bool) {
+        do {
+            try LaunchAtLogin.set(enabled)
+            launchProblem = LaunchAtLogin.needsApproval
+                ? "Keur Spraakwater goed bij Systeeminstellingen > Algemeen > Inlog-onderdelen."
+                : nil
+        } catch {
+            launchProblem = "Dit lukt alleen vanuit de geinstalleerde app in Programma's. (\(error.localizedDescription))"
+        }
+        launchAtLogin = LaunchAtLogin.isEnabled
     }
 
     private func keyField(_ title: String, text: Binding<String>, problem: String?) -> some View {
@@ -221,5 +313,7 @@ struct SettingsView: View {
     private func refreshPermissions() {
         accessibilityGranted = TextInserter.hasAccessibilityAccess
         microphone = MicrophoneAccess.current
+        inputMonitoringGranted = CGPreflightListenEventAccess()
+        launchAtLogin = LaunchAtLogin.isEnabled
     }
 }
