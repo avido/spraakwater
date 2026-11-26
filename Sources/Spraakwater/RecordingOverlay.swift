@@ -96,7 +96,7 @@ private final class SpectrumDisplay {
 
 private struct OverlayView: View {
     /// The pill itself. The panel is larger so the shadow has room and is not clipped.
-    static let pillSize = NSSize(width: 148, height: 40)
+    static let pillSize = NSSize(width: 192, height: 40)
     static let panelSize = NSSize(width: pillSize.width + 48, height: pillSize.height + 40)
 
     private static let barWidth: CGFloat = 3
@@ -115,6 +115,11 @@ private struct OverlayView: View {
                 let values = display.advance(to: timeline.date, targets: targets(at: timeline.date))
                 bars(values)
             }
+            // Escape cancels a running recording, so say so while it is possible.
+            Text("esc")
+                .font(.system(size: 10, weight: .medium, design: .rounded))
+                .foregroundStyle(.white.opacity(0.45))
+                .opacity(controller.phase == .recording ? 1 : 0)
         }
         .padding(.horizontal, 16)
         .frame(width: Self.pillSize.width, height: Self.pillSize.height)
