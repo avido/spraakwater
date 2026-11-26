@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds Dicteer and assembles a signed .app bundle in build/Dicteer.app.
+# Builds Spraakwater and assembles a signed .app bundle in build/Spraakwater.app.
 #
 # Usage:
 #   ./build.sh            build only
@@ -14,24 +14,25 @@ cd "$(dirname "$0")"
 
 swift build -c release
 
-APP="build/Dicteer.app"
+APP="build/Spraakwater.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp .build/release/Dicteer "$APP/Contents/MacOS/Dicteer"
+cp .build/release/Spraakwater "$APP/Contents/MacOS/Spraakwater"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
 IDENTITY="${SIGN_IDENTITY:-$(security find-identity -v -p codesigning | grep 'Apple Development' | head -1 | sed -E 's/.*"(.*)".*/\1/')}"
 if [ -z "$IDENTITY" ]; then
     echo "No Apple Development identity found, falling back to ad-hoc signing (permissions reset on every build)."
     IDENTITY="-"
 fi
-codesign --force --sign "$IDENTITY" --identifier nl.avido.dicteer "$APP"
+codesign --force --sign "$IDENTITY" --identifier nl.avido.spraakwater "$APP"
 echo "Built $APP (signed with: $IDENTITY)"
 
 case "${1:-}" in
     install)
         mkdir -p "$HOME/Applications"
-        ditto "$APP" "$HOME/Applications/Dicteer.app"
-        echo "Installed to ~/Applications/Dicteer.app"
+        ditto "$APP" "$HOME/Applications/Spraakwater.app"
+        echo "Installed to ~/Applications/Spraakwater.app"
         ;;
     run)
         open "$APP"

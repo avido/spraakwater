@@ -1,4 +1,4 @@
-# Dicteer
+# Spraakwater
 
 Menubar-app voor macOS: houd een sneltoets ingedrukt, praat, laat los en de tekst wordt op de cursorplek geplakt. Eigen alternatief voor Willow Voice.
 
@@ -22,7 +22,7 @@ Het script tekent de app met je Apple Development-certificaat. Zo blijven de rec
 
 1. Open Instellingen via het menubar-icoon en vul de sleutels in (OpenAI of Groq, en Anthropic voor het opruimen). Ze staan in de Keychain.
 2. Geef toegang tot de Microfoon bij de eerste opname.
-3. Zet Dicteer aan onder Systeeminstellingen > Privacy en beveiliging > Toegankelijkheid. Zonder dit kan de app niet plakken (de tekst staat dan wel op het klembord).
+3. Zet Spraakwater aan onder Systeeminstellingen > Privacy en beveiliging > Toegankelijkheid. Zonder dit kan de app niet plakken (de tekst staat dan wel op het klembord).
 
 ## Opbouw
 
