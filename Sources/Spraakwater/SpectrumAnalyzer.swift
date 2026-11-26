@@ -10,44 +10,19 @@ nonisolated final class SpectrumStore: Sendable {
     func get() -> [Float] { lock.withLock { $0 } }
 }
 
-/// Listens to the microphone next to the recorder and turns it into a handful of
-/// frequency bands (0...1) for the overlay. It never touches the recorded audio.
+/// Holds the frequency bands (0...1) that the overlay draws. The recorder feeds it from its own
+/// microphone tap through a processor, so there is only one engine on the microphone.
 final class SpectrumAnalyzer {
     static let bandCount = 15
 
     nonisolated let store = SpectrumStore()
-    private let engine = AVAudioEngine()
-    private var running = false
 
-    func start() {
-        guard !running else { return }
-        let input = engine.inputNode
-        let format = input.outputFormat(forBus: 0)
-        guard format.sampleRate > 0 else { return }
-
-        let processor = SpectrumProcessor(sampleRate: format.sampleRate, bandCount: Self.bandCount, store: store)
-        input.installTap(onBus: 0, bufferSize: 1024, format: format, block: Self.makeTap(processor))
-        engine.prepare()
-        do {
-            try engine.start()
-            running = true
-        } catch {
-            input.removeTap(onBus: 0)
-        }
+    func makeProcessor(sampleRate: Double) -> SpectrumProcessor {
+        SpectrumProcessor(sampleRate: sampleRate, bandCount: Self.bandCount, store: store)
     }
 
-    func stop() {
-        guard running else { return }
-        engine.inputNode.removeTap(onBus: 0)
-        engine.stop()
-        running = false
+    func reset() {
         store.set([])
-    }
-
-    /// Built in a nonisolated context so the closure is not bound to the main actor,
-    /// because the tap is called on the audio thread.
-    private nonisolated static func makeTap(_ processor: SpectrumProcessor) -> AVAudioNodeTapBlock {
-        { buffer, _ in processor.process(buffer) }
     }
 }
 

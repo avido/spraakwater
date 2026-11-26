@@ -3,6 +3,7 @@ import Foundation
 enum SpraakwaterError: LocalizedError {
     case recordingFailed
     case microphoneDenied
+    case microphoneUnavailable
     case api(service: String, status: Int, message: String)
     case invalidResponse(service: String)
 
@@ -10,6 +11,8 @@ enum SpraakwaterError: LocalizedError {
         switch self {
         case .recordingFailed:
             "De opname kon niet starten."
+        case .microphoneUnavailable:
+            "De gekozen microfoon reageert niet. Kies een andere bij Instellingen > Microfoon."
         case .microphoneDenied:
             "Geen toegang tot de microfoon. Zet dit aan bij Systeeminstellingen > Privacy en beveiliging > Microfoon."
         case let .api(service, status, message):
